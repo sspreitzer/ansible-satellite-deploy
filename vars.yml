@@ -1,0 +1,41 @@
+---
+# Target information
+ansible_ssh_host: <target IP>
+ansible_ssh_user: root
+ansible_ssh_pass: <target root password>
+# Can add sudo here
+
+# Red Hat Network
+rhn_username: <RHN account username>
+rhn_password: <RHN account password>
+
+# Satellite
+satellite_version: '6.1'
+satellite_admin_username: admin
+satellite_admin_password: redhat
+
+satellite_organization: ACME
+satellite_location: Milkyway
+
+satellite_repos:
+  - rhel-{{ansible_distribution_major_version}}-server-rpms
+  - rhel-server-rhscl-{{ansible_distribution_major_version}}-rpms
+  - rhel-{{ansible_distribution_major_version}}-server-satellite-{{satellite_version}}-rpms
+satellite_ports:
+  - '80/tcp'   # HTTP
+  - '443/tcp'  # HTTPS
+  - '5646/tcp' # qpid/Katello
+  - '5647/tcp' # qpid/Katello
+  - '5671/tcp' # amqp
+  - '5674/tcp' # amqp
+  - '8140/tcp' # Puppet
+  - '9090/tcp' # Foreman Smart Proxy / Capsule
+  - '53/tcp'   # DNS
+  - '53/udp'   # DNS
+  - '67/udp'   # DHCP
+  - '68/udp'   # DHCP
+  - '69/udp'   # TFTP
+satellite_environment:
+  LC_ALL: en_US.UTF8    # Some rubygems need this as they have
+  LANG: en_US.UTF8      # missing UTF8 encoding declarations
+  LANGUAGE: en_US.UTF8

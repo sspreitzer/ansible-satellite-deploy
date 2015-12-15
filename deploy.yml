@@ -1,0 +1,24 @@
+---
+# Installing Red Hat Satellite
+- hosts: satellite
+  environment: "{{satellite_environment}}"
+  tasks:
+    - lineinfile: dest=/etc/hosts line="{{ansible_default_ipv4.address}} {{ansible_hostname}}.{{ansible_domain}} {{ansible_hostname}}"
+    - command: /usr/sbin/subscription-manager register --force --username="{{rhn_username}}" --password="{{rhn_password}}"
+    - command: /usr/sbin/subscription-manager list --available --all --matches='Red Hat Satellite*' --pool-only
+      register: poolid
+    - command: /usr/sbin/subscription-manager attach --pool="{{poolid.stdout_lines[0]}}"
+    - command: /usr/sbin/subscription-manager repos --disable="*"
+    - command: /usr/sbin/subscription-manager repos --enable="{{item}}"
+      with_items: satellite_repos
+    - yum: name=firewalld
+      when: ansible_distribution_major_version>=7
+    - service: name=firewalld enabled=true state=started
+      when: ansible_distribution_major_version>=7
+    - firewalld: port={{item}} permanent=true state=enabled
+      with_items: satellite_ports
+      when: ansible_distribution_major_version>=7
+    - service: name=firewalld state=restarted
+      when: ansible_distribution_major_version>=7
+    - yum: name=katello
+    - command: /usr/sbin/katello-installer --no-colors -v -l error --foreman-admin-username={{satellite_admin_username}} --foreman-admin-password={{satellite_admin_password}}
