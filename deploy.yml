@@ -3,22 +3,34 @@
 - hosts: satellite
   environment: "{{satellite_environment}}"
   tasks:
-    - lineinfile: dest=/etc/hosts line="{{ansible_default_ipv4.address}} {{ansible_hostname}}.{{ansible_domain}} {{ansible_hostname}}"
-    - command: /usr/sbin/subscription-manager register --force --username="{{rhn_username}}" --password="{{rhn_password}}"
-    - command: /usr/sbin/subscription-manager list --available --all --matches='Red Hat Satellite*' --pool-only
+    - name: "Set hostname to {{ansible_hostname}}.{{ansible_domain}}"
+      lineinfile: dest=/etc/hosts line="{{ansible_default_ipv4.address}} {{ansible_hostname}}.{{ansible_domain}} {{ansible_hostname}}"
+    - name: Subscribe system to RHN
+      command: /usr/sbin/subscription-manager register --force --username="{{rhn_username}}" --password="{{rhn_password}}"
+    - name: Fetch Satellite software pool
+      command: /usr/sbin/subscription-manager list --available --all --matches='Red Hat Satellite*' --pool-only
       register: poolid
-    - command: /usr/sbin/subscription-manager attach --pool="{{poolid.stdout_lines[0]}}"
-    - command: /usr/sbin/subscription-manager repos --disable="*"
-    - command: /usr/sbin/subscription-manager repos --enable="{{item}}"
-      with_items: satellite_repos
-    - yum: name=firewalld
+    - name: "Attach to Satellite software pool {{poolid.stdout_lines[0]}}"
+      command: /usr/sbin/subscription-manager attach --pool="{{poolid.stdout_lines[0]}}"
+    - name: Disable all repositories
+      command: /usr/sbin/subscription-manager repos --disable="*"
+    - name: Enable Satellite repositories
+      command: /usr/sbin/subscription-manager repos --enable="{{item}}"
+      with_items: "{{ satellite_repos }}"
+    - name: Install firewalld
+      yum: name=firewalld
       when: ansible_distribution_major_version>=7
-    - service: name=firewalld enabled=true state=started
+    - name: Enable firewalld
+      service: name=firewalld enabled=true state=started
       when: ansible_distribution_major_version>=7
-    - firewalld: port={{item}} permanent=true state=enabled
-      with_items: satellite_ports
+    - name: Allow Satellite firewall ports
+      firewalld: port={{item}} permanent=true state=enabled
+      with_items: "{{ satellite_ports }}"
       when: ansible_distribution_major_version>=7
-    - service: name=firewalld state=restarted
+    - name: Restart firewalld
+      service: name=firewalld state=restarted
       when: ansible_distribution_major_version>=7
-    - yum: name=katello
-    - command: /usr/sbin/katello-installer --no-colors -v -l error --foreman-admin-username="{{satellite_admin_username}}" --foreman-admin-password="{{satellite_admin_password}}" --foreman-initial-location="{{satellite_location}}" --foreman-initial-organization="{{satellite_organization}}"
+    - name: Install katello
+      yum: name=katello
+    - name: Run katello installer
+      command: /usr/sbin/katello-installer --no-colors -v -l error --foreman-admin-username="{{satellite_admin_username}}" --foreman-admin-password="{{satellite_admin_password}}" --foreman-initial-location="{{satellite_location}}" --foreman-initial-organization="{{satellite_organization}}"
